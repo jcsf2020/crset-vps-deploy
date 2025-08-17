@@ -1,0 +1,85 @@
+networks:
+  crset:
+    driver: bridge
+
+volumes:
+  pgdata:
+  caddydata:
+  caddyconfig:
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/00_init.sql
+    networks: [crset]
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      JWT_SECRET: ${JWT_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      MODEL: ${MODEL}
+      LOG_LEVEL: ${LOG_LEVEL}
+      RATE_LIMIT_PER_MIN: ${RATE_LIMIT_PER_MIN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"   # <-- mapeia para o host
+    networks: [crset]
+    restart: unless-stopped
+
+  admin:
+    build: ./admin
+    env_file: [.env]
+    environment:
+      NEXT_PUBLIC_API_BASE: https://${API}
+    depends_on: [backend]
+    networks: [crset]
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    env_file: [.env]
+    environment:
+      NEXT_PUBLIC_API_BASE: https://${API}
+    depends_on: [backend]
+    networks: [crset]
+    restart: unless-stopped
+
+  widget:
+    build: ./widget
+    networks: [crset]
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    env_file: [.env]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile
+      - caddydata:/data
+      - caddyconfig:/config
+      - ./widget/public:/usr/share/caddy   # serve widget.js em chat.crsetsolutions.com
+    depends_on: [frontend, backend, admin, widget]
+    networks: [crset]
+    restart: unless-stopped
+

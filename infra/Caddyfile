@@ -1,0 +1,36 @@
+﻿{
+  # sem TLS no localhost
+  auto_https off
+}
+
+:80 {
+  # Admin
+  @admin host {$ADMIN}
+  handle @admin {
+    reverse_proxy admin:3001
+  }
+
+  # API
+  @api host {$API}
+  handle @api {
+    reverse_proxy backend:8000
+  }
+
+  # Widget estático
+  @chat host {$CHAT}
+  handle @chat {
+    root * /usr/share/caddy
+    file_server
+  }
+
+  # Site principal (apex + www)
+  @apex host {$APEX} www.{$APEX}
+  handle @apex {
+    reverse_proxy frontend:3000
+  }
+
+  # fallback
+  handle {
+    reverse_proxy frontend:3000
+  }
+}

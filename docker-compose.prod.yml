@@ -1,0 +1,64 @@
+﻿version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    expose:
+      - "3000"
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      - PORT=8000
+    expose:
+      - "8000"
+
+  admin:
+    build:
+      context: ./admin
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    expose:
+      - "3000"
+
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crset
+      POSTGRES_PASSWORD: crset
+      POSTGRES_DB: crset
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      - APEX=${APEX}
+      - ADMIN=${ADMIN}
+      - API=${API}
+      - CHAT=${CHAT}
+      - GO=${GO}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./infra/widget:/usr/share/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
