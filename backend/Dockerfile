@@ -11,5 +11,4 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-# Usa shell direto para garantir expansão do $PORT
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "${PORT}"]
